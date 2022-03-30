@@ -45,6 +45,7 @@
 #include "dungeon/DungeonService.h"
 #include "dungeon/DungeonDB.h"
 #include "system/cosmicMgrs/DungeonMgr.h"
+#include "system/KeeperService.h"
 #include "packets/Missions.h"
 
 PyCallable_Make_InnerDispatcher(DungeonService)
@@ -130,7 +131,58 @@ PyResult DungeonService::Handle_AddObject( PyCallArgs& call )
     _log(DUNG__CALL,  "DungeonService::Handle_AddObject size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
 
-    return nullptr;
+    if(call.tuple->size() != 9) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to AddObject");
+        return NULL;
+    }
+
+    Dungeon::RoomObject newObject;
+    newObject.roomID = PyRep::IntegerValue(call.tuple->GetItem(0));
+    newObject.typeID = PyRep::IntegerValueU32(call.tuple->GetItem(1));
+    newObject.x = PyRep::FloatValue(call.tuple->GetItem(2));
+    newObject.y = PyRep::FloatValue(call.tuple->GetItem(3));
+    newObject.z = PyRep::FloatValue(call.tuple->GetItem(4));
+    newObject.yaw = PyRep::FloatValue(call.tuple->GetItem(5));
+    newObject.pitch = PyRep::FloatValue(call.tuple->GetItem(6));
+    newObject.roll = PyRep::FloatValue(call.tuple->GetItem(7));
+    newObject.radius = PyRep::FloatValue(call.tuple->GetItem(8));
+
+    uint32 groupID = DungeonDB::GetFirstGroupForRoom(newObject.roomID);
+
+    newObject.objectID = DungeonDB::CreateObject(newObject.roomID, newObject.typeID, groupID, newObject.x, newObject.y, newObject.z, newObject.yaw, newObject.pitch, newObject.roll, newObject.radius);
+
+    Client *pClient(call.client);
+
+    GPoint objPos;
+    objPos.x = newObject.x + pClient->GetSession()->GetCurrentFloat("editor_room_x");
+    objPos.y = newObject.y + pClient->GetSession()->GetCurrentFloat("editor_room_y");
+    objPos.z = newObject.z + pClient->GetSession()->GetCurrentFloat("editor_room_z");
+
+    ItemData dData(newObject.typeID, 1/*EVE SYSTEM*/, pClient->GetLocationID(), flagNone, "", objPos);
+    InventoryItemRef iRef = InventoryItem::SpawnItem(sItemFactory.GetNextTempID(), dData);
+    if (iRef.get() == nullptr) {// Failed to spawn the item
+        throw CustomError("Failed to spawn the item");
+        return nullptr;
+    }
+
+    DungeonEditSE* oSE;
+    oSE = new DungeonEditSE(iRef, *(m_manager), pClient->SystemMgr(), newObject);
+
+    // Fetch the bound object
+    KeeperBound* keeperBnd = static_cast <KeeperBound*> (pClient->services().FindBoundObject(pClient->GetSession()->GetCurrentInt("editor_bind_id")));
+
+    // Add the object to the room
+    keeperBnd->AddRoomObject(oSE);
+
+    // Add the entity to the SystemManager
+    pClient->SystemMgr()->AddEntity(oSE, false);
+
+    // Return objectID and revisionID
+    PyTuple *result = new PyTuple(2);
+    result->SetItem(0, new PyInt(newObject.objectID));
+    result->SetItem(1, new PyInt(1/*dummy value*/));
+
+    return result;
 }
 
 PyResult DungeonService::Handle_RemoveObject( PyCallArgs& call )
@@ -397,7 +449,23 @@ PyResult DungeonService::Handle_DEGetRoomObjectPaletteData( PyCallArgs& call )
     DBQueryResult res;
     DungeonDB::GetGroups(res);
 
-    return DBResultToCRowset(res);
+    std::map<uint16, Inv::TypeData> types;
+    sDataMgr.GetTypes(types);
+
+    PyList* list = new PyList();
+
+    for (auto cur : types) {
+        Inv::GrpData grp;
+        sDataMgr.GetGroup(cur.second.groupID, grp);
+        if (grp.catID == EVEDB::invCategories::Celestial) {
+            PyTuple* tuple = new PyTuple(2);
+            tuple->items[0] = new PyInt(cur.second.id);
+            tuple->items[1] = new PyString(cur.second.name);
+            list->AddItem(tuple);
+        }
+    }
+
+    return list;
 }
 
 PyResult DungeonService::Handle_DEGetFactions( PyCallArgs& call )

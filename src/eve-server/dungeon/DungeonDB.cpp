@@ -109,6 +109,29 @@ PyRep* DungeonDB::GetRoomGroups(uint32 roomID)
     return DBResultToCRowset(res);
 }
 
+uint32 DungeonDB::GetFirstGroupForRoom(uint32 roomID)
+{
+    DBQueryResult res;
+
+    if (!sDatabase.RunQuery(res,
+            "SELECT "
+                " groupID"
+            " FROM dunRoomObjects "
+            " WHERE roomID = %u"
+            " GROUP BY groupID"
+            " ORDER BY groupID ASC"
+            " LIMIT 1"))
+    {
+        _log(DATABASE__ERROR, "Error in GetFirstGroupForRoom query: %s", res.error.c_str());
+    }
+
+    DBResultRow row;
+    if (!res.GetRow(row))
+        return 0;
+
+    return row.GetUInt(0);
+}
+
 void DungeonDB::GetRoomObjects(uint32 roomID, std::vector< Dungeon::RoomObject >& into)
 {
     DBQueryResult res;
@@ -160,4 +183,15 @@ void DungeonDB::EditObjectYawPitchRoll(uint32 objectID, double yaw, double pitch
 
     if (!sDatabase.RunQuery(err, "UPDATE dunRoomObjects SET yaw = %f, pitch = %f, roll = %f WHERE objectID = %u", yaw, pitch, roll, objectID))
         _log(DATABASE__ERROR, "Cannot update object's %u rotation to %f, %f, %f", objectID, yaw, pitch, roll);
+}
+
+uint32 DungeonDB::CreateObject(uint32 roomID, uint32 typeID, uint32 groupID, double x, double y, double z, double yaw, double pitch, double roll, double radius)
+{
+    DBerror err;
+
+    uint32 objectID;
+    if (!sDatabase.RunQueryLID(err, objectID, "INSERT INTO dunRoomObjects (roomID, typeID, groupID, x, y, z, yaw, pitch, roll, radius) VALUES (%u, %u, %u, %f, %f, %f, %f, %f, %f, %f)", roomID, typeID, groupID, x, y, z, yaw, pitch, roll, radius))
+        _log(DATABASE__ERROR, "Cannot insert object into room %u", roomID);
+
+    return objectID;
 }

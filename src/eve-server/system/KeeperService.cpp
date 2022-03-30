@@ -47,61 +47,27 @@
 #include "system/SystemManager.h"
 #include "dungeon/DungeonDB.h"
 
-class KeeperBound
-: public PyBoundObject
+KeeperBound::KeeperBound(PyServiceMgr *mgr, SystemDB *db)
+: PyBoundObject(mgr),
+m_db(db),
+m_dispatch(new Dispatcher(this))
 {
-public:
-    PyCallable_Make_Dispatcher(KeeperBound)
+    _SetCallDispatcher(m_dispatch);
 
-    KeeperBound(PyServiceMgr *mgr, SystemDB *db)
-    : PyBoundObject(mgr),
-    m_db(db),
-    m_dispatch(new Dispatcher(this))
-    {
-        _SetCallDispatcher(m_dispatch);
+    m_strBoundObjectName = "KeeperBound";
 
-        m_strBoundObjectName = "KeeperBound";
+    PyCallable_REG_CALL(KeeperBound, EditDungeon);
+    PyCallable_REG_CALL(KeeperBound, PlayDungeon);
+    PyCallable_REG_CALL(KeeperBound, Reset);
+    PyCallable_REG_CALL(KeeperBound, GotoRoom); //(int room)
+    PyCallable_REG_CALL(KeeperBound, GetCurrentlyEditedRoomID);
+    PyCallable_REG_CALL(KeeperBound, GetRoomObjects);
+    PyCallable_REG_CALL(KeeperBound, GetRoomGroups);
+    PyCallable_REG_CALL(KeeperBound, ObjectSelection);
+    PyCallable_REG_CALL(KeeperBound, BatchStart);
+    PyCallable_REG_CALL(KeeperBound, BatchEnd);
 
-        PyCallable_REG_CALL(KeeperBound, EditDungeon);
-        PyCallable_REG_CALL(KeeperBound, PlayDungeon);
-        PyCallable_REG_CALL(KeeperBound, Reset);
-        PyCallable_REG_CALL(KeeperBound, GotoRoom); //(int room)
-        PyCallable_REG_CALL(KeeperBound, GetCurrentlyEditedRoomID);
-        PyCallable_REG_CALL(KeeperBound, GetRoomObjects);
-        PyCallable_REG_CALL(KeeperBound, GetRoomGroups);
-        PyCallable_REG_CALL(KeeperBound, ObjectSelection);
-        PyCallable_REG_CALL(KeeperBound, BatchStart);
-        PyCallable_REG_CALL(KeeperBound, BatchEnd);
-
-    }
-    virtual ~KeeperBound() { delete m_dispatch; }
-    virtual void Release() {
-        //I hate this statement
-        delete this;
-    }
-
-    PyCallable_DECL_CALL(EditDungeon);
-    PyCallable_DECL_CALL(PlayDungeon);
-    PyCallable_DECL_CALL(Reset);
-    PyCallable_DECL_CALL(GotoRoom);
-    PyCallable_DECL_CALL(GetCurrentlyEditedRoomID);
-    PyCallable_DECL_CALL(GetRoomObjects);
-    PyCallable_DECL_CALL(GetRoomGroups);
-    PyCallable_DECL_CALL(ObjectSelection);
-    PyCallable_DECL_CALL(BatchStart);
-    PyCallable_DECL_CALL(BatchEnd);
-
-protected:
-    SystemDB *const m_db;
-    Dispatcher *const m_dispatch;   //we own this
-
-private:
-    uint32 m_currentDungeon;
-    uint32 m_currentRoom;
-    std::vector<DungeonEditSE*> m_roomObjects;
-    std::vector<int32> m_selectedObjects;
-};
-
+}
 
 PyCallable_Make_InnerDispatcher(KeeperService)
 
@@ -213,6 +179,12 @@ PyResult KeeperBound::Handle_EditDungeon(PyCallArgs &call)
 
     GPoint roomPos = pClient->GetShipSE()->GetPosition();
 
+    pClient->GetSession()->SetFloat("editor_room_x", roomPos.x);
+    pClient->GetSession()->SetFloat("editor_room_y", roomPos.y);
+    pClient->GetSession()->SetFloat("editor_room_z", roomPos.z);
+
+    pClient->GetSession()->SetInt("editor_bind_id", bindID());
+
     std::vector<Dungeon::RoomObject> objects;
     DungeonDB::GetRoomObjects(call.byname["roomID"]->AsInt()->value(), objects);
 
@@ -234,15 +206,15 @@ PyResult KeeperBound::Handle_EditDungeon(PyCallArgs &call)
     }
 
     // Send notification to client to update UI
-    PyDict* posKeyVal = new PyDict();
-        posKeyVal->SetItemString("x", new PyFloat(roomPos.x));
-        posKeyVal->SetItemString("y", new PyFloat(roomPos.y));
-        posKeyVal->SetItemString("z", new PyFloat(roomPos.z));
+    PyList* posList = new PyList();
+        posList->AddItem(new PyFloat(roomPos.x));
+        posList->AddItem(new PyFloat(roomPos.y));
+        posList->AddItem(new PyFloat(roomPos.z));
 
     PyTuple* payload = new PyTuple(3);
     payload->SetItem(0, new PyInt(args.arg)); //dungeonID
     payload->SetItem(1, new PyInt(call.byname["roomID"]->AsInt()->value())); //roomID
-    payload->SetItem(2, new PyObject("util.KeyVal", posKeyVal)); //roomPos
+    payload->SetItem(2, posList); //roomPos
 
     pClient->SendNotification("OnDungeonEdit", "charid", payload, false);
 

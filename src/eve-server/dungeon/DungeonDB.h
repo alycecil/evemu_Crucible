@@ -30,6 +30,8 @@ public:
     static void EditObjectXYZ(uint32 objectID, double x, double y, double z);
     static void EditObjectRadius(uint32 objectID, double radius);
     static void EditObjectYawPitchRoll(uint32 objectID, double yaw, double pitch, double roll);
+    static uint32 CreateObject(uint32 roomID, uint32 typeID, uint32 groupID, double x, double y, double z, double yaw, double pitch, double roll, double radius);
+    static uint32 GetFirstGroupForRoom(uint32 roomID);
 
 protected:
 

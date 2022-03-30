@@ -29,6 +29,8 @@
 
 #include "system/SystemDB.h"
 #include "PyService.h"
+#include "PyServiceCD.h"
+#include "PyBoundObject.h"
 
 class KeeperService
 : public PyService
@@ -52,7 +54,44 @@ protected:
 };
 
 
+class KeeperBound
+: public PyBoundObject
+{
+public:
 
+    PyCallable_Make_Dispatcher(KeeperBound);
+
+    KeeperBound(PyServiceMgr *mgr, SystemDB *db);
+    virtual ~KeeperBound() { delete m_dispatch; }
+    virtual void Release() {
+        //I hate this statement
+        delete this;
+    }
+
+    PyCallable_DECL_CALL(EditDungeon);
+    PyCallable_DECL_CALL(PlayDungeon);
+    PyCallable_DECL_CALL(Reset);
+    PyCallable_DECL_CALL(GotoRoom);
+    PyCallable_DECL_CALL(GetCurrentlyEditedRoomID);
+    PyCallable_DECL_CALL(GetRoomObjects);
+    PyCallable_DECL_CALL(GetRoomGroups);
+    PyCallable_DECL_CALL(ObjectSelection);
+    PyCallable_DECL_CALL(BatchStart);
+    PyCallable_DECL_CALL(BatchEnd);
+
+    virtual void AddRoomObject(DungeonEditSE *pSE) { m_roomObjects.push_back(pSE); }
+
+protected:
+    SystemDB *const m_db;
+
+    Dispatcher *const m_dispatch;   //we own this
+
+private:
+    uint32 m_currentDungeon;
+    uint32 m_currentRoom;
+    std::vector<DungeonEditSE*> m_roomObjects;
+    std::vector<int32> m_selectedObjects;
+};
 
 
 #endif
