@@ -80,6 +80,7 @@ public:
     PyCallable_DECL_CALL(BatchEnd);
 
     virtual void AddRoomObject(DungeonEditSE *pSE) { m_roomObjects.push_back(pSE); }
+    virtual void RemoveRoomObject(uint32 itemID);
 
 protected:
     SystemDB *const m_db;

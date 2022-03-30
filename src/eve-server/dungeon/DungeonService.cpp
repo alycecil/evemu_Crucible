@@ -191,6 +191,21 @@ PyResult DungeonService::Handle_RemoveObject( PyCallArgs& call )
     _log(DUNG__CALL,  "DungeonService::Handle_RemoveObject  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
 
+    if(call.tuple->size() != 1) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to RemoveObject");
+        return NULL;
+    }
+
+    uint32 objectID = PyRep::IntegerValue(call.tuple->GetItem(0));
+
+    Client *pClient(call.client);
+    
+    // Fetch the bound object
+    KeeperBound* keeperBnd = static_cast <KeeperBound*> (pClient->services().FindBoundObject(pClient->GetSession()->GetCurrentInt("editor_bind_id")));
+
+    // Remove the object from the room
+    keeperBnd->RemoveRoomObject(objectID);
+
     return nullptr;
 }
 

@@ -195,3 +195,11 @@ uint32 DungeonDB::CreateObject(uint32 roomID, uint32 typeID, uint32 groupID, dou
 
     return objectID;
 }
+
+void DungeonDB::DeleteObject(uint32 objectID)
+{
+    DBerror err;
+
+    if (!sDatabase.RunQuery(err, "DELETE FROM dunRoomObjects WHERE objectID = %u", objectID))
+        _log(DATABASE__ERROR, "Cannot delete object %u", objectID);
+}

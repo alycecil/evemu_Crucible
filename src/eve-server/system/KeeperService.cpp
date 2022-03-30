@@ -355,3 +355,19 @@ PyResult KeeperBound::Handle_BatchEnd(PyCallArgs &call)
     // send new set state to the client
     return nullptr;
 }
+
+void KeeperBound::RemoveRoomObject(uint32 itemID)
+{
+    uint32 objectID = 0;
+    for (std::vector <DungeonEditSE*> ::iterator cur = m_roomObjects.begin(); cur != m_roomObjects.end(); cur++) {
+        if ((*cur)->GetID() == itemID) {
+            objectID = (*cur)->GetData().objectID;
+            (*cur)->Delete();
+            SafeDelete(*cur);
+            m_roomObjects.erase(cur);
+            break;
+        }
+    }
+
+    DungeonDB::DeleteObject(objectID);
+}
