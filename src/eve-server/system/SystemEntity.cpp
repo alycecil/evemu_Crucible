@@ -835,6 +835,8 @@ DungeonEditSE::DungeonEditSE(InventoryItemRef self, PyServiceMgr& services, Syst
 : ObjectSystemEntity(self, services, system),
     m_data(data)
 {
+    // Set the radius from the data structure
+    m_destiny->SetRadius(m_data.radius);
 }
 
 PyDict* DungeonEditSE::MakeSlimItem()

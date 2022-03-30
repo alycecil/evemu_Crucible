@@ -371,3 +371,13 @@ void KeeperBound::RemoveRoomObject(uint32 itemID)
 
     DungeonDB::DeleteObject(objectID);
 }
+
+DungeonEditSE* KeeperBound::GetRoomObject(uint32 itemID)
+{
+    for (std::vector <DungeonEditSE*> ::iterator cur = m_roomObjects.begin(); cur != m_roomObjects.end(); cur++) {
+        if ((*cur)->GetID() == itemID)
+            return (*cur);
+    }
+
+    return nullptr;
+}

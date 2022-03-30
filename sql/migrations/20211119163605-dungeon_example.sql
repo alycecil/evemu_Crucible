@@ -35,7 +35,7 @@ VALUES (
 -- Create example room object (this is not needed if you are using the room editor)
 INSERT INTO dunRoomObjects
 VALUES (
-    1,                  -- ID of the object
+    NULL,               -- ID of the room object (MUST BE UNIQUE. Check dunRoomObjects AND dunRoomObjectData for collisions)
     10001,              -- ID of the room
     9886,               -- TypeID of the item to be inserted
     10000,              -- GroupID of the item

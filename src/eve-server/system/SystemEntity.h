@@ -236,6 +236,7 @@ public:
     const GPoint&               GetPosition() const     { return m_self->position(); }
     void                  SetPosition(const GPoint &pos){ m_self->SetPosition(pos); }
     void                        SetRadius(double radius){ m_self->SetRadius(radius); }
+    void                        Rename(const char *name){ m_self->Rename(name); }
     inline double               x()                     { return m_self->position().x; }
     inline double               y()                     { return m_self->position().y; }
     inline double               z()                     { return m_self->position().z; }

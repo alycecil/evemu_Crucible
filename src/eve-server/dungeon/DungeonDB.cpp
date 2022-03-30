@@ -161,6 +161,35 @@ void DungeonDB::GetRoomObjects(uint32 roomID, std::vector< Dungeon::RoomObject >
     }
 }
 
+void DungeonDB::GetTemplateObjects(uint32 templateID, std::vector< Dungeon::RoomObject >& into)
+{
+    DBQueryResult res;
+
+    if (!sDatabase.RunQuery(res, "SELECT objectID, roomID, typeID, groupID, x, y, z, yaw, pitch, roll, radius "
+    "FROM dunTemplates INNER JOIN dunRoomObjects ON dunTemplates.dunRoomID = dunRoomObjects.roomID "
+    "WHERE dunTemplateID=%u", templateID))
+    _log(DATABASE__ERROR, "Error in GetTemplateObjects query: %s", res.error.c_str());
+
+    _log(DATABASE__RESULTS, "GetTemplateObjects returned %lu items", res.GetRowCount());
+    DBResultRow row;
+
+    while(res.GetRow(row)) {
+        Dungeon::RoomObject entry = Dungeon::RoomObject();
+            entry.objectID = row.GetInt(0);
+            entry.roomID = row.GetInt(1);
+            entry.typeID = row.GetInt(2);
+            entry.groupID = row.GetInt(3);
+            entry.x = row.GetInt(4);
+            entry.y = row.GetInt(5);
+            entry.z = row.GetInt(6);
+            entry.pitch = row.GetDouble(7);
+            entry.roll = row.GetDouble(8);
+            entry.yaw = row.GetDouble(9);
+            entry.radius = row.GetInt(10);
+        into.push_back(entry);
+    }
+}
+
 void DungeonDB::EditObjectXYZ(uint32 objectID, double x, double y, double z)
 {
     DBerror err;
@@ -203,3 +232,4 @@ void DungeonDB::DeleteObject(uint32 objectID)
     if (!sDatabase.RunQuery(err, "DELETE FROM dunRoomObjects WHERE objectID = %u", objectID))
         _log(DATABASE__ERROR, "Cannot delete object %u", objectID);
 }
+

@@ -29,6 +29,7 @@
 
 #include "system/SystemDB.h"
 #include "PyService.h"
+#include "system/KeeperService.h"
 
 class DungeonService
 : public PyService
@@ -61,6 +62,8 @@ protected:
     PyCallable_DECL_CALL(AddObject);
     PyCallable_DECL_CALL(TemplateAdd);
     PyCallable_DECL_CALL(TemplateObjectAddDungeonList);
+
+    KeeperBound* GetKeeperBound(Client *pClient) { return static_cast <KeeperBound*> (pClient->services().FindBoundObject(pClient->GetSession()->GetCurrentInt("editor_bind_id"))); }
 
 };
 

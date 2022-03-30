@@ -45,7 +45,6 @@
 #include "dungeon/DungeonService.h"
 #include "dungeon/DungeonDB.h"
 #include "system/cosmicMgrs/DungeonMgr.h"
-#include "system/KeeperService.h"
 #include "packets/Missions.h"
 
 PyCallable_Make_InnerDispatcher(DungeonService)
@@ -168,11 +167,8 @@ PyResult DungeonService::Handle_AddObject( PyCallArgs& call )
     DungeonEditSE* oSE;
     oSE = new DungeonEditSE(iRef, *(m_manager), pClient->SystemMgr(), newObject);
 
-    // Fetch the bound object
-    KeeperBound* keeperBnd = static_cast <KeeperBound*> (pClient->services().FindBoundObject(pClient->GetSession()->GetCurrentInt("editor_bind_id")));
-
     // Add the object to the room
-    keeperBnd->AddRoomObject(oSE);
+    GetKeeperBound(pClient)->AddRoomObject(oSE);
 
     // Add the entity to the SystemManager
     pClient->SystemMgr()->AddEntity(oSE, false);
@@ -198,13 +194,8 @@ PyResult DungeonService::Handle_RemoveObject( PyCallArgs& call )
 
     uint32 objectID = PyRep::IntegerValue(call.tuple->GetItem(0));
 
-    Client *pClient(call.client);
-    
-    // Fetch the bound object
-    KeeperBound* keeperBnd = static_cast <KeeperBound*> (pClient->services().FindBoundObject(pClient->GetSession()->GetCurrentInt("editor_bind_id")));
-
     // Remove the object from the room
-    keeperBnd->RemoveRoomObject(objectID);
+    GetKeeperBound(call.client)->RemoveRoomObject(objectID);
 
     return nullptr;
 }
@@ -214,6 +205,57 @@ PyResult DungeonService::Handle_CopyObject( PyCallArgs& call )
     //newObjectID = sm.RemoteSvc('dungeon').CopyObject(objectID, roomID, offsetX, offsetY, offsetZ)
     _log(DUNG__CALL,  "DungeonService::Handle_CopyObject  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
+
+    if(call.tuple->size() != 5) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to CopyObject");
+        return NULL;
+    }
+
+    uint32 objectID = PyRep::IntegerValue(call.tuple->GetItem(0));
+    uint32 roomID = PyRep::IntegerValue(call.tuple->GetItem(1));
+    double offsetX = PyRep::FloatValue(call.tuple->GetItem(2));
+    double offsetY = PyRep::FloatValue(call.tuple->GetItem(3));
+    double offsetZ = PyRep::FloatValue(call.tuple->GetItem(4));
+
+    // Copy the object to the room
+    Dungeon::RoomObject newObject;
+    newObject.roomID = roomID;
+    newObject.typeID = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().typeID;
+    newObject.x = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().x + offsetX;
+    newObject.y = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().y + offsetY;
+    newObject.z = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().z + offsetZ;
+    newObject.yaw = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().yaw;
+    newObject.pitch = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().pitch;
+    newObject.roll = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().roll;
+    newObject.radius = GetKeeperBound(call.client)->GetRoomObject(objectID)->GetData().radius;
+
+    uint32 groupID = DungeonDB::GetFirstGroupForRoom(newObject.roomID);
+
+    newObject.objectID = DungeonDB::CreateObject(newObject.roomID, newObject.typeID, groupID, newObject.x, newObject.y, newObject.z, newObject.yaw, newObject.pitch, newObject.roll, newObject.radius);
+
+    Client *pClient(call.client);
+
+    GPoint objPos;
+
+    objPos.x = newObject.x + pClient->GetSession()->GetCurrentFloat("editor_room_x");
+    objPos.y = newObject.y + pClient->GetSession()->GetCurrentFloat("editor_room_y");
+    objPos.z = newObject.z + pClient->GetSession()->GetCurrentFloat("editor_room_z");
+
+    ItemData dData(newObject.typeID, 1/*EVE SYSTEM*/, pClient->GetLocationID(), flagNone, "", objPos);
+    InventoryItemRef iRef = InventoryItem::SpawnItem(sItemFactory.GetNextTempID(), dData);
+    if (iRef.get() == nullptr) {// Failed to spawn the item
+        throw CustomError("Failed to spawn the item");
+        return nullptr;
+    }
+
+    DungeonEditSE* oSE;
+    oSE = new DungeonEditSE(iRef, *(m_manager), pClient->SystemMgr(), newObject);
+
+    // Add the object to the room
+    GetKeeperBound(pClient)->AddRoomObject(oSE);
+
+    // Add the entity to the SystemManager
+    pClient->SystemMgr()->AddEntity(oSE, false);
 
     return nullptr;
 }
@@ -231,6 +273,19 @@ PyResult DungeonService::Handle_EditObjectName( PyCallArgs& call )
     //sm.RemoteSvc('dungeon').EditObjectName(newObjectID, objectName)
     _log(DUNG__CALL,  "DungeonService::Handle_EditObjectName  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
+
+    if(call.tuple->size() != 2) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to EditObjectName");
+        return NULL;
+    }
+
+    uint32 objectID = PyRep::IntegerValue(call.tuple->GetItem(0));
+    std::string objectName = call.tuple->GetItem(1)->AsString()->content();
+
+    // Update the object name
+    DungeonEditSE* oSE = GetKeeperBound(call.client)->GetRoomObject(objectID);
+
+    oSE->Rename(objectName.c_str());
 
     return nullptr;
 }
@@ -356,7 +411,56 @@ PyResult DungeonService::Handle_AddTemplateObjects( PyCallArgs& call )
     _log(DUNG__CALL,  "DungeonService::Handle_AddTemplateObjects  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
 
-    return nullptr;
+    if(call.tuple->size() != 3) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to AddTemplateObjects");
+        return NULL;
+    }
+
+    uint32 roomID = call.tuple->GetItem(0)->AsInt()->value();
+    uint32 templateID = call.tuple->GetItem(1)->AsInt()->value();
+    double posInRoomX = call.tuple->GetItem(2)->AsTuple()->GetItem(0)->AsFloat()->value();
+    double posInRoomY = call.tuple->GetItem(2)->AsTuple()->GetItem(1)->AsFloat()->value();
+    double posInRoomZ = call.tuple->GetItem(2)->AsTuple()->GetItem(2)->AsFloat()->value();
+
+    std::vector<Dungeon::RoomObject> objects;
+    DungeonDB::GetTemplateObjects(templateID, objects);
+
+    Client *pClient(call.client);
+    PyList* objectIDs = new PyList();
+
+    uint32 groupID = DungeonDB::GetFirstGroupForRoom(roomID);
+
+    // Spawn the items in the object list
+    for (auto cur : objects) {
+        GPoint objPos;
+
+        // Relative position for the object to be spawned at
+        objPos.x = posInRoomX + cur.x + pClient->GetSession()->GetCurrentFloat("editor_room_x");
+        objPos.y = posInRoomY + cur.y + pClient->GetSession()->GetCurrentFloat("editor_room_y");
+        objPos.z = posInRoomZ + cur.z + pClient->GetSession()->GetCurrentFloat("editor_room_z");
+
+        // Position to be stored in the DB
+        double dbPosX = posInRoomX + cur.x;
+        double dbPosY = posInRoomY + cur.y;
+        double dbPosZ = posInRoomZ + cur.z;
+
+        // Create the object in the database
+        DungeonDB::CreateObject(roomID, cur.typeID, groupID, dbPosX, dbPosY, dbPosZ, cur.yaw, cur.pitch, cur.roll, cur.radius);
+
+        ItemData dData(cur.typeID, 1/*EVE SYSTEM*/, pClient->GetLocationID(), flagNone, "", objPos);
+        InventoryItemRef iRef = InventoryItem::SpawnItem(sItemFactory.GetNextTempID(), dData);
+        if (iRef.get() == nullptr) // Failed to spawn the item
+            continue;
+        DungeonEditSE* oSE;
+        oSE = new DungeonEditSE(iRef, *(m_manager), pClient->SystemMgr(), cur);
+
+        GetKeeperBound(pClient)->AddRoomObject(oSE);
+        pClient->SystemMgr()->AddEntity(oSE, false);
+
+        objectIDs->AddItem(new PyInt(oSE->GetData().objectID));
+    }
+
+    return objectIDs;
 }
 
 PyResult DungeonService::Handle_TemplateObjectAddDungeonList( PyCallArgs& call )
@@ -495,7 +599,6 @@ PyResult DungeonService::Handle_DEGetFactions( PyCallArgs& call )
     DungeonDB::GetFactions(res);
     return DBResultToCRowset(res);
 }
-
 
 /*{'messageKey': 'DunAuthoringError', 'dataID': 17883918, 'suppressable': False, 'bodyID': 259674, 'messageType': 'warning', 'urlAudio': '', 'urlIcon': '', 'titleID': None, 'messageID': 830}
  * {'messageKey': 'DunBlacklistCannotWarp', 'dataID': 17880454, 'suppressable': False, 'bodyID': 258397, 'messageType': 'info', 'urlAudio': '', 'urlIcon': '', 'titleID': 258396, 'messageID': 2100}

@@ -26,6 +26,7 @@ public:
     static void GetDungeons(uint32 archetypeID, uint32 factionID, DBQueryResult& res);
     static void GetGroups(DBQueryResult& res);
     static void GetRoomObjects(uint32 roomID, std::vector< Dungeon::RoomObject >& into);
+    static void GetTemplateObjects(uint32 templateID, std::vector< Dungeon::RoomObject >& into);
     static PyRep* GetRoomGroups(uint32 roomID);
     static void EditObjectXYZ(uint32 objectID, double x, double y, double z);
     static void EditObjectRadius(uint32 objectID, double radius);
