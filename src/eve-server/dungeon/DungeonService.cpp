@@ -383,7 +383,21 @@ PyResult DungeonService::Handle_TemplateAdd( PyCallArgs& call )
     _log(DUNG__CALL,  "DungeonService::Handle_TemplateAdd  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
 
-    return nullptr;
+    // Get the currently edited roomID from KeeperBound
+    uint32 roomID = GetKeeperBound(call.client)->GetCurrentRoomID();
+
+    if(call.tuple->size() != 2) {
+        codelog(SERVICE__ERROR, "Wrong number of arguments in call to TemplateAdd");
+        return NULL;
+    }
+
+    std::string templateName = call.tuple->GetItem(0)->AsWString()->content();
+    std::string templateDescription = call.tuple->GetItem(1)->AsWString()->content();
+
+    // Create the new template
+    uint32 templateID = DungeonDB::CreateTemplate(templateName, templateDescription, roomID);
+
+    return new PyInt(templateID);
 }
 
 PyResult DungeonService::Handle_TemplateRemove( PyCallArgs& call )
@@ -391,6 +405,8 @@ PyResult DungeonService::Handle_TemplateRemove( PyCallArgs& call )
     //sm.RemoteSvc('dungeon').TemplateRemove(self.sr.node.id)
     _log(DUNG__CALL,  "DungeonService::Handle_TemplateRemove  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
+
+    DungeonDB::DeleteTemplate(call.tuple->GetItem(0)->AsInt()->value());
 
     return nullptr;
 }
@@ -400,6 +416,8 @@ PyResult DungeonService::Handle_TemplateEdit( PyCallArgs& call )
     //dungeonSvc.TemplateEdit(self.templateRow.templateID, templateName, templateDescription)
     _log(DUNG__CALL,  "DungeonService::Handle_TemplateEdit  size: %li", call.tuple->size());
     call.Dump(DUNG__CALL_DUMP);
+
+    DungeonDB::EditTemplate(call.tuple->GetItem(0)->AsInt()->value(), call.tuple->GetItem(1)->AsWString()->content(), call.tuple->GetItem(2)->AsWString()->content());
 
     return nullptr;
 }
@@ -533,7 +551,7 @@ PyResult DungeonService::Handle_DEGetTemplates( PyCallArgs& call )
     call.Dump(DUNG__CALL_DUMP);
 
     DBQueryResult res;
-    DungeonDB::GetTemplates(res);
+    DungeonDB::GetTemplates(res, call.client->GetUserID());
 
     return DBResultToCRowset(res);
 }

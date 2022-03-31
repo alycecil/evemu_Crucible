@@ -17,7 +17,7 @@ public:
     DungeonDB()                                         { /* do nothing here */ }
     ~DungeonDB()                                        { /* do nothing here */ }
 
-    static void GetTemplates(DBQueryResult& res);
+    static void GetTemplates(DBQueryResult& res, int32 userID);
     static void GetFactions(DBQueryResult& res);
     static void GetRooms(uint32 dungeonID, DBQueryResult& res);
     static void GetArchetypes(DBQueryResult& res);
@@ -34,6 +34,9 @@ public:
     static uint32 CreateObject(uint32 roomID, uint32 typeID, uint32 groupID, double x, double y, double z, double yaw, double pitch, double roll, double radius);
     static uint32 GetFirstGroupForRoom(uint32 roomID);
     static void DeleteObject(uint32 objectID);
+    static void EditTemplate(uint32 templateID, std::string templateName, std::string templateDescription);
+    static void DeleteTemplate(uint32 templateID);
+    static uint32 CreateTemplate(std::string templateName, std::string templateDescription, uint32 roomID);
 
 protected:
 

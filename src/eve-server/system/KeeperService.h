@@ -82,6 +82,7 @@ public:
     virtual void AddRoomObject(DungeonEditSE *pSE) { m_roomObjects.push_back(pSE); }
     virtual void RemoveRoomObject(uint32 itemID);
     DungeonEditSE* GetRoomObject(uint32 itemID);
+    virtual uint32 GetCurrentRoomID() { return m_currentRoom; }
 
 protected:
     SystemDB *const m_db;

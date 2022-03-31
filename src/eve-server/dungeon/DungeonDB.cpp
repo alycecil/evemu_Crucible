@@ -30,11 +30,12 @@
 #include "DungeonDB.h"
 
 
-void DungeonDB::GetTemplates(DBQueryResult& res)
+void DungeonDB::GetTemplates(DBQueryResult& res, int32 userID)
 {
     if (!sDatabase.RunQuery(res, "SELECT dunTemplateID as templateID, dunTemplateName as templateName, "
-    "dunTemplateDescription as description "
-    "FROM dunTemplates"))
+    "dunTemplateDescription as description, "
+    "%u as userID "
+    "FROM dunTemplates", userID))
         _log(DATABASE__ERROR, "Error in GetDunTemplates query: %s", res.error.c_str());
 }
 
@@ -233,3 +234,41 @@ void DungeonDB::DeleteObject(uint32 objectID)
         _log(DATABASE__ERROR, "Cannot delete object %u", objectID);
 }
 
+void DungeonDB::EditTemplate(uint32 templateID, std::string templateName, std::string templateDescription)
+{
+    DBerror err;
+
+    std::string templateNameEscaped;
+    sDatabase.DoEscapeString(templateNameEscaped, templateName);
+
+    std::string templateDescriptionEscaped;
+    sDatabase.DoEscapeString(templateDescriptionEscaped, templateDescription);
+
+    if (!sDatabase.RunQuery(err, "UPDATE dunTemplates SET dunTemplateName = '%s', dunTemplateDescription = '%s' WHERE dunTemplateID = %u", templateNameEscaped.c_str(), templateDescriptionEscaped.c_str(), templateID))
+        _log(DATABASE__ERROR, "Cannot update template %u", templateID);
+}
+
+void DungeonDB::DeleteTemplate(uint32 templateID)
+{
+    DBerror err;
+
+    if (!sDatabase.RunQuery(err, "DELETE FROM dunTemplates WHERE dunTemplateID = %u", templateID))
+        _log(DATABASE__ERROR, "Cannot delete template %u", templateID);
+}
+
+uint32 DungeonDB::CreateTemplate(std::string templateName, std::string templateDescription, uint32 roomID)
+{
+    DBerror err;
+
+    std::string templateNameEscaped;
+    sDatabase.DoEscapeString(templateNameEscaped, templateName);
+
+    std::string templateDescriptionEscaped;
+    sDatabase.DoEscapeString(templateDescriptionEscaped, templateDescription);
+
+    uint32 templateID;
+    if (!sDatabase.RunQueryLID(err, templateID, "INSERT INTO dunTemplates (dunTemplateName, dunTemplateDescription, dunRoomID) VALUES ('%s', '%s', %u)", templateNameEscaped.c_str(), templateDescriptionEscaped.c_str(), roomID))
+        _log(DATABASE__ERROR, "Cannot insert template into room %u", roomID);
+
+    return templateID;
+}
