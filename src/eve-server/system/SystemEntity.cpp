@@ -835,8 +835,6 @@ DungeonEditSE::DungeonEditSE(InventoryItemRef self, PyServiceMgr& services, Syst
 : ObjectSystemEntity(self, services, system),
     m_data(data)
 {
-    // Set the radius from the data structure
-    m_destiny->SetRadius(m_data.radius);
 }
 
 PyDict* DungeonEditSE::MakeSlimItem()
@@ -847,7 +845,7 @@ PyDict* DungeonEditSE::MakeSlimItem()
         slim->SetItemString("typeID", new PyInt(m_self->typeID()));
         slim->SetItemString("groupID", new PyInt(m_self->groupID()));
         slim->SetItemString("dunObjectID", new PyInt(m_self->itemID()));
-        slim->SetItemString("dunRadius", new PyInt(m_data.radius));
+        slim->SetItemString("dunRadius", new PyFloat(m_data.radius));
         slim->SetItemString("dunRoomID", new PyInt(m_data.roomID));
         slim->SetItemString("dunX", new PyFloat(m_data.x));
         slim->SetItemString("dunY", new PyFloat(m_data.y));

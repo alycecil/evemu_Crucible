@@ -188,7 +188,7 @@ namespace Dungeon {
         double yaw;
         double pitch;
         double roll;
-        uint16 radius;
+        double radius;
     };
 
     struct RoomData {

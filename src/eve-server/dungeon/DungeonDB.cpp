@@ -156,7 +156,7 @@ void DungeonDB::GetRoomObjects(uint32 roomID, std::vector< Dungeon::RoomObject >
             entry.pitch = row.GetDouble(7);
             entry.roll = row.GetDouble(8);
             entry.yaw = row.GetDouble(9);
-            entry.radius = row.GetInt(10);
+            entry.radius = row.GetDouble(10);
         into.push_back(entry);
     }
 }
@@ -185,7 +185,7 @@ void DungeonDB::GetTemplateObjects(uint32 templateID, std::vector< Dungeon::Room
             entry.pitch = row.GetDouble(7);
             entry.roll = row.GetDouble(8);
             entry.yaw = row.GetDouble(9);
-            entry.radius = row.GetInt(10);
+            entry.radius = row.GetDouble(10);
         into.push_back(entry);
     }
 }

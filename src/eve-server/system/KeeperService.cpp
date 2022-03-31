@@ -203,6 +203,8 @@ PyResult KeeperBound::Handle_EditDungeon(PyCallArgs &call)
         oSE = new DungeonEditSE(iRef, *(m_manager), pClient->SystemMgr(), cur);
         m_roomObjects.push_back(oSE);
         pClient->SystemMgr()->AddEntity(oSE, false);
+        // Set the radius from the data structure
+        oSE->DestinyMgr()->SetRadius(cur.radius, true);
     }
 
     // Send notification to client to update UI
